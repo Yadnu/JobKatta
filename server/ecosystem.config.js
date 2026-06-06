@@ -10,6 +10,7 @@ export default {
       env: {
         NODE_ENV: 'production',
         PORT: 5000,
+        REDIS_URL: 'redis://localhost:6379',
       },
       error_file: 'logs/err.log',
       out_file: 'logs/out.log',

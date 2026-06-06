@@ -74,7 +74,6 @@ model User {
   candidate      Candidate?
   employer       Employer?
   admin          Admin?
-  otpRecords     OtpRecord[]
   supportTickets SupportTicket[]
   flagReports    FlagReport[]
 }
@@ -317,18 +316,6 @@ model Subscription {
   expiresAt         DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-}
-
-model OtpRecord {
-  id        String   @id @default(cuid())
-  userId    String?
-  mobile    String
-  otp       String
-  purpose   String
-  expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  user      User?    @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
 }
 
 model Admin {

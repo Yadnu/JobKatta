@@ -95,6 +95,13 @@ export const useJobApplicants = (jobId: string) =>
     enabled: !!jobId,
   });
 
+export const useEmployerRecentApplications = () =>
+  useQuery({
+    queryKey: ['employer', 'applications', 'recent'],
+    queryFn: () =>
+      api.get<ApiResponse<Application[]>>('/employer/applications').then((r) => r.data.data ?? []),
+  });
+
 export const useUpdateApplicationStatus = () => {
   const qc = useQueryClient();
   return useMutation({

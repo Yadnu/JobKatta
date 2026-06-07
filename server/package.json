@@ -29,6 +29,7 @@
     "nodemailer": "^6.9.13",
     "rate-limit-redis": "^5.0.0",
     "razorpay": "^2.9.2",
+    "resend": "^6.12.4",
     "uuid": "^9.0.1",
     "xss": "^1.0.15",
     "zod": "^3.23.8"

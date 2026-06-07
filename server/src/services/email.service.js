@@ -1,16 +1,11 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const loadTemplate = (templateName, data) => {
   const templatePath = path.join(__dirname, '..', 'templates', 'emails', `${templateName}.html`);
@@ -28,7 +23,12 @@ const loadTemplate = (templateName, data) => {
 
 const sendEmail = async ({ to, subject, templateName, data }) => {
   const html = loadTemplate(templateName, data);
-  await transporter.sendMail({ from: process.env.EMAIL_FROM, to, subject, html });
+  await resend.emails.send({
+    from: 'JobKatta <noreply@jobkatta.in>',
+    to,
+    subject,
+    html,
+  });
 };
 
 export const sendWelcomeEmail = (to, data) =>

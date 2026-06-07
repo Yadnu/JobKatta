@@ -1,13 +1,14 @@
 import axios from 'axios';
-import db from '../config/database.js';
+import { getCache, setCache, deleteCache } from '../utils/cache.util.js';
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-export const sendOtp = async (mobile, purpose, userId = null) => {
-  const otp = generateOtp();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+const otpKey = (mobile, purpose) => `otp:${mobile}:${purpose}`;
 
-  await db.otpRecord.create({ data: { mobile, otp, purpose, expiresAt, userId } });
+export const sendOtp = async (mobile, purpose) => {
+  const otp = generateOtp();
+
+  await setCache(otpKey(mobile, purpose), otp, 600);
 
   if (process.env.NODE_ENV === 'production') {
     await axios.get('https://api.msg91.com/api/v5/otp', {
@@ -27,11 +28,8 @@ export const sendOtp = async (mobile, purpose, userId = null) => {
 };
 
 export const verifyOtp = async (mobile, otp, purpose) => {
-  const record = await db.otpRecord.findFirst({
-    where: { mobile, otp, purpose, isUsed: false, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (!record) return false;
-  await db.otpRecord.update({ where: { id: record.id }, data: { isUsed: true } });
+  const stored = await getCache(otpKey(mobile, purpose));
+  if (!stored || stored !== otp) return false;
+  await deleteCache(otpKey(mobile, purpose));
   return true;
 };

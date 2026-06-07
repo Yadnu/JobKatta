@@ -59,8 +59,8 @@
 
 ## 6. Server — Services
 
-- [x] `server/src/services/email.service.js`
-- [x] `server/src/services/otp.service.js`
+- [~] `server/src/services/email.service.js` — needs update: swap nodemailer → Resend (`resend.emails.send`); all exported function signatures unchanged; each send wrapped in try/catch
+- [~] `server/src/services/otp.service.js` — needs update: remove `db.otpRecord.*` calls; store OTP in Redis key `otp:<mobile>:<purpose>` (TTL 600s) via `cache.util.js`
 - [x] `server/src/services/profileComplete.service.js`
 - [x] `server/src/services/subscription.service.js`
 
@@ -213,6 +213,8 @@
 - [ ] Landing page at `http://localhost:3000/` renders correctly
 - [ ] Auth pages at `/auth/login`, `/auth/register` render correctly
 - [ ] End-to-end: register → verify email → login → `/api/auth/me` returns user
+- [ ] Redis is running on VPS (`redis-cli ping` returns PONG); `maxmemory 128mb` + `maxmemory-policy allkeys-lru` set in `/etc/redis/redis.conf`; `sudo systemctl enable redis-server` run
+- [ ] Resend API key added to `.env`; domain `jobkatta.in` verified in Resend dashboard with required DNS records added via Hostinger DNS panel
 
 ---
 

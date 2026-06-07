@@ -61,8 +61,9 @@ export const educationSchema = z.object({
   percentage: z.number().min(0).max(100).optional(),
   startYear: z.number().int().min(1980).max(new Date().getFullYear()),
   endYear: z.number().int().min(1980).optional(),
-  isCurrently: z.boolean().default(false),
+  isCurrently: z.boolean(),
 });
+export type EducationInput = z.infer<typeof educationSchema>;
 
 export const experienceSchema = z.object({
   jobTitle: z.string().min(2),
@@ -71,9 +72,20 @@ export const experienceSchema = z.object({
   employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'INTERNSHIP', 'FREELANCE', 'CONTRACT']).optional(),
   startDate: z.string(),
   endDate: z.string().optional(),
-  isCurrent: z.boolean().default(false),
+  isCurrent: z.boolean(),
   description: z.string().max(1000).optional(),
 });
+export type ExperienceInput = z.infer<typeof experienceSchema>;
+
+export const preferencesSchema = z.object({
+  preferredRoles: z.string().max(200).optional(),
+  preferredCities: z.string().max(200).optional(),
+  preferredEmpType: z.string().optional(),
+  expectedSalaryMin: z.number().min(0).optional(),
+  expectedSalaryMax: z.number().min(0).optional(),
+  openToWork: z.boolean(),
+});
+export type PreferencesInput = z.infer<typeof preferencesSchema>;
 
 export const jobPostSchema = z.object({
   title: z.string().min(5, 'Min 5 characters').max(100),
@@ -81,6 +93,7 @@ export const jobPostSchema = z.object({
   employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'INTERNSHIP', 'FREELANCE', 'CONTRACT']),
   description: z.string().min(100, 'Min 100 characters'),
   requirements: z.string().optional(),
+  hiringProcess: z.string().optional(),
   salaryMin: z.number().positive().optional(),
   salaryMax: z.number().positive().optional(),
   hideSalary: z.boolean().default(false),

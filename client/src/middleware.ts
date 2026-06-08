@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED_PREFIXES = ['/candidate', '/employer'];
+const PROTECTED_PREFIXES = ['/candidate', '/employer', '/admin'];
 const SESSION_COOKIE = 'jk-has-session';
 
 export function middleware(request: NextRequest) {
@@ -18,5 +18,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/candidate/:path*', '/employer/:path*'],
+  matcher: ['/candidate/:path*', '/employer/:path*', '/admin/:path*'],
 };

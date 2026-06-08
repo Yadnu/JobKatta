@@ -1,7 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/types';
-import { setTokens, clearTokens, setSessionCookie, clearSessionCookie } from '@/lib/auth';
+import { setTokens, clearTokens } from '@/lib/auth';
+
+const SESSION_COOKIE = 'jk-has-session';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
+function setHasSessionCookie(): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${SESSION_COOKIE}=1; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+}
+
+function clearHasSessionCookie(): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+}
 
 interface AuthState {
   user: User | null;
@@ -23,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
 
       setAuth: (user, accessToken, refreshToken) => {
         setTokens(accessToken, refreshToken);
-        setSessionCookie();
+        setHasSessionCookie();
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
 
@@ -32,7 +45,7 @@ export const useAuthStore = create<AuthState>()(
 
       clearAuth: () => {
         clearTokens();
-        clearSessionCookie();
+        clearHasSessionCookie();
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       },
     }),

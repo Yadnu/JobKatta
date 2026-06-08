@@ -1,7 +1,7 @@
 export const CANDIDATE_PLANS = {
   FREE: { label: 'Free', price: 0, appLimit: 5 },
   PREMIUM_MONTHLY: { label: 'Premium Monthly', price: 99, appLimit: -1, duration: 30, planType: 'PREMIUM' },
-  PREMIUM_YEARLY: { label: 'Premium Yearly', price: 999, appLimit: -1, duration: 365, planType: 'PREMIUM' },
+  PREMIUM_YEARLY: { label: 'Premium 6 Months', price: 499, appLimit: -1, duration: 180, planType: 'PREMIUM' },
 };
 
 export const EMPLOYER_PLANS = {

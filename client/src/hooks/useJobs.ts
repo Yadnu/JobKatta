@@ -2,15 +2,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import type { ApiResponse, Job } from '@/types';
+import type { ApiResponse, Employer, Job, Skill } from '@/types';
 
 interface JobFilters {
   keyword?: string;
   city?: string;
+  state?: string;
   category?: string;
   type?: string;
   salaryMin?: number;
   salaryMax?: number;
+  employerId?: string;
   page?: number;
   limit?: number;
 }
@@ -52,6 +54,24 @@ export const useSaveJob = () => {
     onError: () => toast.error('Failed to save job'),
   });
 };
+
+export const usePublicEmployer = (employerId: string) =>
+  useQuery({
+    queryKey: ['employer', 'public', employerId],
+    queryFn: () => api.get<ApiResponse<Employer>>(`/employers/${employerId}`).then((r) => r.data.data),
+    enabled: !!employerId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const useSkills = (search?: string) =>
+  useQuery({
+    queryKey: ['skills', search ?? ''],
+    queryFn: () =>
+      api
+        .get<ApiResponse<Skill[]>>(`/skills${search ? `?q=${encodeURIComponent(search)}` : ''}`)
+        .then((r) => r.data.data),
+    staleTime: 10 * 60 * 1000,
+  });
 
 export const useApplyJob = () => {
   const qc = useQueryClient();

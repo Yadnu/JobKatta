@@ -4,6 +4,7 @@ import { Check, Zap } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanInfo, usePaymentHistory } from '@/hooks/useSubscription';
 import { useEmployerProfile } from '@/hooks/useEmployer';
+import { useRazorpay } from '@/hooks/useRazorpay';
 import PlanBadge from '@/components/shared/PlanBadge';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
@@ -15,6 +16,7 @@ export default function EmployerSubscriptionPage() {
   const { data: employer, isLoading } = useEmployerProfile();
   const plans = usePlanInfo('EMPLOYER');
   const { data: historyData } = usePaymentHistory();
+  const { openCheckout, isCreatingOrder, isVerifying } = useRazorpay();
 
   const currentPlan = user?.employer?.planType ?? 'FREE';
   const planExpiresAt = user?.employer?.planExpiresAt;
@@ -135,12 +137,17 @@ export default function EmployerSubscriptionPage() {
                         ? 'bg-primary-500 hover:bg-primary-600 text-white'
                         : ''
                     )}
-                    onClick={() => {
-                      // Payment flow — Phase 3
-                      alert('Payment integration coming soon!');
-                    }}
+                    disabled={isCreatingOrder || isVerifying}
+                    onClick={() =>
+                      openCheckout({
+                        planKey: plan.key,
+                        forRole: 'EMPLOYER',
+                        userName: user?.name,
+                        userEmail: user?.email,
+                      })
+                    }
                   >
-                    Upgrade to {plan.label}
+                    {isCreatingOrder || isVerifying ? 'Processing…' : `Upgrade to ${plan.label}`}
                   </Button>
                 )}
               </div>
@@ -189,10 +196,10 @@ export default function EmployerSubscriptionPage() {
                   <span
                     className={cn(
                       'text-xs font-medium',
-                      payment.status === 'PAID' ? 'text-emerald-600' : 'text-slate-500'
+                      payment.status.toUpperCase() === 'PAID' ? 'text-emerald-600' : 'text-slate-500'
                     )}
                   >
-                    {payment.status}
+                    {payment.status.toUpperCase()}
                   </span>
                 </div>
               </div>

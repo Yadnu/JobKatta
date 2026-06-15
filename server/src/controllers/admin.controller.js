@@ -2,6 +2,7 @@ import db from '../config/database.js';
 import { catchAsync, AppError } from '../middleware/errorHandler.middleware.js';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination.util.js';
 import { sendJobApprovedEmail, sendJobRejectedEmail, sendTicketReplyEmail } from '../services/email.service.js';
+import { createNotification } from '../utils/notification.util.js';
 
 export const getStats = catchAsync(async (req, res) => {
   const now = new Date();
@@ -28,20 +29,22 @@ export const getPendingJobs = catchAsync(async (req, res) => {
 });
 
 export const approveJob = catchAsync(async (req, res) => {
-  const job = await db.job.findUnique({ where: { id: req.params.id }, include: { employer: { include: { user: { select: { email: true } } } } } });
+  const job = await db.job.findUnique({ where: { id: req.params.id }, include: { employer: { select: { userId: true, companyName: true, user: { select: { email: true } } } } } });
   if (!job) throw new AppError('Job not found', 404);
   const updated = await db.job.update({ where: { id: req.params.id }, data: { status: 'ACTIVE', approvedAt: new Date(), approvedBy: req.user.id } });
   if (job.employer?.user?.email) await sendJobApprovedEmail(job.employer.user.email, { jobTitle: job.title, companyName: job.employer.companyName }).catch(() => {});
+  if (job.employer?.userId) createNotification({ userId: job.employer.userId, type: 'JOB_APPROVED', title: 'Job Approved', message: `Your job "${job.title}" has been approved and is now live`, link: `/employer/jobs` });
   res.json({ success: true, message: 'Job approved', data: updated });
 });
 
 export const rejectJob = catchAsync(async (req, res) => {
   const { rejectionReason } = req.body;
   if (!rejectionReason) throw new AppError('Rejection reason required', 400);
-  const job = await db.job.findUnique({ where: { id: req.params.id }, include: { employer: { include: { user: { select: { email: true } } } } } });
+  const job = await db.job.findUnique({ where: { id: req.params.id }, include: { employer: { select: { userId: true, companyName: true, user: { select: { email: true } } } } } });
   if (!job) throw new AppError('Job not found', 404);
   const updated = await db.job.update({ where: { id: req.params.id }, data: { status: 'REJECTED', rejectionReason } });
   if (job.employer?.user?.email) await sendJobRejectedEmail(job.employer.user.email, { jobTitle: job.title, reason: rejectionReason }).catch(() => {});
+  if (job.employer?.userId) createNotification({ userId: job.employer.userId, type: 'JOB_REJECTED', title: 'Job Not Approved', message: `Your job "${job.title}" was not approved: ${rejectionReason}`, link: `/employer/jobs` });
   res.json({ success: true, message: 'Job rejected', data: updated });
 });
 

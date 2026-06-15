@@ -21,6 +21,10 @@ export const updateProfile = catchAsync(async (req, res) => {
   for (const f of fields) {
     if (req.body[f] !== undefined) data[f] = typeof req.body[f] === 'string' ? xss(req.body[f]) : req.body[f];
   }
+  if ('dob' in data) {
+    if (data.dob) data.dob = new Date(data.dob);
+    else delete data.dob;
+  }
   const updated = await db.candidate.update({ where: { id: candidate.id }, data });
   const profileComplete = await calculateProfileComplete(candidate.id);
   res.json({ success: true, message: 'Profile updated', data: { ...updated, profileComplete } });
@@ -131,7 +135,7 @@ export const getSavedJobs = catchAsync(async (req, res) => {
   if (!candidate) throw new AppError('Profile not found', 404);
   const { page, limit, skip } = parsePagination(req.query);
   const [saved, total] = await Promise.all([
-    db.savedJob.findMany({ where: { candidateId: candidate.id }, include: { job: { include: { employer: { select: { companyName: true, logoUrl: true, city: true } } } } }, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+    db.savedJob.findMany({ where: { candidateId: candidate.id }, include: { job: { include: { employer: { select: { companyName: true, logoUrl: true, city: true } }, skills: { include: { skill: true } } } } }, orderBy: { createdAt: 'desc' }, skip, take: limit }),
     db.savedJob.count({ where: { candidateId: candidate.id } }),
   ]);
   res.json({ success: true, message: 'Saved jobs fetched', data: saved, pagination: buildPaginationMeta(page, limit, total) });

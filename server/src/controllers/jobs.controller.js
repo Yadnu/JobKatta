@@ -3,17 +3,20 @@ import { catchAsync, AppError } from '../middleware/errorHandler.middleware.js';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination.util.js';
 import { checkCandidateAppLimit } from '../services/subscription.service.js';
 import { sendApplicationSubmittedEmail } from '../services/email.service.js';
+import { createNotification } from '../utils/notification.util.js';
 
 export const listJobs = catchAsync(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query);
-  const { keyword, city, category, type, salaryMin, salaryMax } = req.query;
+  const { keyword, city, state, category, type, salaryMin, salaryMax, employerId } = req.query;
   const where = { status: 'ACTIVE' };
   if (keyword) where.OR = [{ title: { contains: keyword } }, { description: { contains: keyword } }, { category: { contains: keyword } }];
   if (city) where.city = { contains: city };
+  if (state) where.state = { contains: state };
   if (category) where.category = category;
   if (type) where.employmentType = type;
   if (salaryMin) where.salaryMax = { gte: parseInt(salaryMin) };
   if (salaryMax) where.salaryMin = { lte: parseInt(salaryMax) };
+  if (employerId) where.employerId = employerId;
 
   const [jobs, total] = await Promise.all([
     db.job.findMany({ where, include: { employer: { select: { companyName: true, logoUrl: true, city: true, industry: true } }, skills: { include: { skill: true } } }, orderBy: [{ isPriority: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }], skip, take: limit }),
@@ -57,10 +60,37 @@ export const toggleSaveJob = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Job saved', data: { saved: true } });
 });
 
+export const getPublicEmployers = catchAsync(async (req, res) => {
+  const { page, limit, skip } = parsePagination(req.query);
+  const { keyword, industry } = req.query;
+  const where = { isVerified: true };
+  if (keyword) where.companyName = { contains: keyword };
+  if (industry) where.industry = { contains: industry };
+
+  const [employers, total] = await Promise.all([
+    db.employer.findMany({
+      where,
+      select: {
+        id: true, companyName: true, logoUrl: true, city: true, state: true,
+        industry: true, companySize: true, website: true, description: true,
+        isVerified: true, foundedYear: true,
+        _count: { select: { jobs: { where: { status: 'ACTIVE' } } } },
+      },
+      orderBy: { companyName: 'asc' },
+      skip,
+      take: limit,
+    }),
+    db.employer.count({ where }),
+  ]);
+
+  const data = employers.map((e) => ({ ...e, activeJobCount: e._count.jobs, _count: undefined }));
+  res.json({ success: true, message: 'Employers fetched', data, pagination: buildPaginationMeta(page, limit, total) });
+});
+
 export const applyToJob = catchAsync(async (req, res) => {
   const candidate = await db.candidate.findUnique({ where: { userId: req.user.id }, include: { user: { select: { email: true } } } });
   if (!candidate) throw new AppError('Candidate profile not found', 404);
-  if (candidate.profileComplete < 50) throw new AppError('Complete at least 50% of your profile before applying', 400);
+  // profile completion gate removed — no minimum required
   const job = await db.job.findFirst({ where: { id: req.params.id, status: 'ACTIVE' } });
   if (!job) throw new AppError('Job not found or no longer accepting applications', 404);
   const existing = await db.application.findUnique({ where: { candidateId_jobId: { candidateId: candidate.id, jobId: job.id } } });
@@ -71,5 +101,9 @@ export const applyToJob = catchAsync(async (req, res) => {
   await db.job.update({ where: { id: job.id }, data: { applicationCount: { increment: 1 } } });
   await db.candidate.update({ where: { id: candidate.id }, data: { appCountThisMonth: { increment: 1 } } });
   if (candidate.user?.email) await sendApplicationSubmittedEmail(candidate.user.email, { name: `${candidate.firstName} ${candidate.lastName}`, jobTitle: job.title }).catch(() => {});
+  const employer = await db.employer.findUnique({ where: { id: job.employerId }, select: { userId: true } });
+  if (employer) {
+    createNotification({ userId: employer.userId, type: 'APPLICATION_RECEIVED', title: 'New Application', message: `${candidate.firstName} ${candidate.lastName} applied for "${job.title}"`, link: `/employer/jobs/${job.id}/applicants` });
+  }
   res.status(201).json({ success: true, message: 'Application submitted', data: application });
 });

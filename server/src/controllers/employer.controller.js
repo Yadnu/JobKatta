@@ -3,6 +3,21 @@ import { catchAsync, AppError } from '../middleware/errorHandler.middleware.js';
 import { parsePagination, buildPaginationMeta } from '../utils/pagination.util.js';
 import { checkEmployerJobLimit } from '../services/subscription.service.js';
 import xss from 'xss';
+import { createNotification } from '../utils/notification.util.js';
+
+export const getPublicEmployerById = catchAsync(async (req, res) => {
+  const employer = await db.employer.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true, companyName: true, logoUrl: true, city: true, state: true,
+      industry: true, companySize: true, website: true, description: true,
+      foundedYear: true, isVerified: true, hrName: true, hrDesignation: true,
+      companyEmail: true, contactNumber: true,
+    },
+  });
+  if (!employer) throw new AppError('Employer not found', 404);
+  res.json({ success: true, message: 'Employer fetched', data: employer });
+});
 
 export const getProfile = catchAsync(async (req, res) => {
   const employer = await db.employer.findUnique({ where: { userId: req.user.id } });
@@ -97,6 +112,10 @@ export const updateApplicationStatus = catchAsync(async (req, res) => {
   const application = await db.application.findFirst({ where: { id: req.params.id }, include: { job: true } });
   if (!application || application.job.employerId !== employer.id) throw new AppError('Application not found', 404);
   const updated = await db.application.update({ where: { id: application.id }, data: { status: req.body.status } });
+  const candidate = await db.candidate.findUnique({ where: { id: application.candidateId }, select: { userId: true } });
+  if (candidate) {
+    createNotification({ userId: candidate.userId, type: 'STATUS_CHANGED', title: 'Application Update', message: `Your application for "${application.job.title}" is now ${req.body.status.toLowerCase()}`, link: `/candidate/applications` });
+  }
   res.json({ success: true, message: 'Status updated', data: updated });
 });
 
@@ -124,6 +143,21 @@ export const getJobAnalytics = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Analytics fetched', data: { viewCount: job.viewCount, applicationCount: job.applicationCount, shortlistedCount } });
 });
 
+export const getRecentApplications = catchAsync(async (req, res) => {
+  const employer = await db.employer.findUnique({ where: { userId: req.user.id } });
+  if (!employer) throw new AppError('Employer profile not found', 404);
+  const applications = await db.application.findMany({
+    where: { job: { employerId: employer.id } },
+    include: {
+      candidate: { select: { id: true, firstName: true, lastName: true, photoUrl: true } },
+      job: { select: { id: true, title: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+  res.json({ success: true, message: 'Recent applications fetched', data: applications });
+});
+
 export const unlockContact = catchAsync(async (req, res) => {
   const employer = await db.employer.findUnique({ where: { userId: req.user.id } });
   if (!employer) throw new AppError('Employer not found', 404);
@@ -132,5 +166,6 @@ export const unlockContact = catchAsync(async (req, res) => {
   if (!application || application.job.employerId !== employer.id) throw new AppError('Application not found', 404);
   await db.application.update({ where: { id: application.id }, data: { contactUnlocked: true } });
   const candidate = await db.candidate.findUnique({ where: { id: application.candidateId } });
+  createNotification({ userId: candidate.userId, type: 'CONTACT_UNLOCKED', title: 'Contact Viewed', message: `${employer.companyName} viewed your contact details`, link: `/candidate/applications` });
   res.json({ success: true, message: 'Contact unlocked', data: { contactUnlocked: true, mobile: candidate.mobile, email: candidate.email } });
 });

@@ -3,10 +3,11 @@
 import { useState, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Pencil, Camera, GraduationCap, Briefcase, Plus, Trash2,
-  MapPin, Phone, Mail, Globe, Linkedin, Github, FileText,
-  Check, X, ChevronsUpDown, Search,
+  MapPin, Phone, Mail, Globe, Link2, ExternalLink, FileText,
+  Check, X, ChevronsUpDown, Search, Upload, Download, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -218,8 +219,15 @@ function PersonalInfoSection({ candidate }: { candidate: Candidate }) {
   });
 
   const onSubmit = async (data: PersonalInput) => {
-    await updateProfile.mutateAsync(data as Partial<Candidate>);
-    setEditing(false);
+    try {
+      await updateProfile.mutateAsync({
+        ...data,
+        dob: data.dob || undefined,
+      } as Partial<Candidate>);
+      setEditing(false);
+    } catch {
+      // error surfaced via toast in mutation's onError
+    }
   };
 
   if (!editing) {
@@ -328,17 +336,17 @@ function BioLinksSection({ candidate }: { candidate: Candidate }) {
   const [portfolio, setPortfolio] = useState(candidate.portfolioUrl ?? '');
   const [linkedin, setLinkedin] = useState(candidate.linkedinUrl ?? '');
   const [github, setGithub] = useState(candidate.githubUrl ?? '');
-  const [resume, setResume] = useState(candidate.resumeUrl ?? '');
 
   const handleSave = async () => {
-    await updateProfile.mutateAsync({
-      bio: bio || undefined,
-      portfolioUrl: portfolio || undefined,
-      linkedinUrl: linkedin || undefined,
-      githubUrl: github || undefined,
-      resumeUrl: resume || undefined,
-    } as Partial<Candidate>);
-    setEditing(false);
+    try {
+      await updateProfile.mutateAsync({
+        bio: bio || undefined,
+        portfolioUrl: portfolio || undefined,
+        linkedinUrl: linkedin || undefined,
+        githubUrl: github || undefined,
+      } as Partial<Candidate>);
+      setEditing(false);
+    } catch { /* toast shown by onError */ }
   };
 
   if (!editing) {
@@ -352,9 +360,8 @@ function BioLinksSection({ candidate }: { candidate: Candidate }) {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <LinkRow icon={<Globe className="h-3.5 w-3.5" />} label="Portfolio" value={candidate.portfolioUrl} />
-            <LinkRow icon={<Linkedin className="h-3.5 w-3.5" />} label="LinkedIn" value={candidate.linkedinUrl} />
-            <LinkRow icon={<Github className="h-3.5 w-3.5" />} label="GitHub" value={candidate.githubUrl} />
-            <LinkRow icon={<FileText className="h-3.5 w-3.5" />} label="Resume" value={candidate.resumeUrl} />
+            <LinkRow icon={<Link2 className="h-3.5 w-3.5" />} label="LinkedIn" value={candidate.linkedinUrl} />
+            <LinkRow icon={<ExternalLink className="h-3.5 w-3.5" />} label="GitHub" value={candidate.githubUrl} />
           </div>
         </div>
       </Section>
@@ -380,7 +387,6 @@ function BioLinksSection({ candidate }: { candidate: Candidate }) {
           { label: 'Portfolio URL', value: portfolio, onChange: setPortfolio, placeholder: 'https://yourportfolio.com' },
           { label: 'LinkedIn URL', value: linkedin, onChange: setLinkedin, placeholder: 'https://linkedin.com/in/...' },
           { label: 'GitHub URL', value: github, onChange: setGithub, placeholder: 'https://github.com/...' },
-          { label: 'Resume URL', value: resume, onChange: setResume, placeholder: 'https://drive.google.com/...' },
         ].map(({ label, value, onChange, placeholder }) => (
           <div key={label}>
             <Label className="text-sm font-medium">{label}</Label>
@@ -393,6 +399,124 @@ function BioLinksSection({ candidate }: { candidate: Candidate }) {
             {updateProfile.isPending ? 'Saving…' : 'Save Changes'}
           </Button>
         </div>
+      </div>
+    </Section>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Resume Section
+// ────────────────────────────────────────────────────────────────────────────
+const RESUME_ACCEPT = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const RESUME_MAX_BYTES = 2 * 1024 * 1024;
+
+function ResumeSection({ candidate }: { candidate: Candidate }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const qc = useQueryClient();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedMimes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const allowedExts = ['.pdf', '.doc', '.docx'];
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedMimes.includes(file.type) && !allowedExts.includes(ext)) {
+      toast.error('Only PDF, DOC, or DOCX files are accepted');
+      return;
+    }
+    if (file.size > RESUME_MAX_BYTES) {
+      toast.error('File size must be under 2 MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('resume', file);
+      await api.post('/upload/resume', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await qc.invalidateQueries({ queryKey: ['candidate', 'profile'] });
+      await qc.invalidateQueries({ queryKey: ['me'] });
+      toast.success('Resume uploaded successfully');
+    } catch {
+      toast.error('Failed to upload resume');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const resumeUrl = candidate.resumeUrl;
+  const fileName = resumeUrl ? decodeURIComponent(resumeUrl.split('/').pop() ?? 'resume') : null;
+  const serverBase = (process.env.NEXT_PUBLIC_API_URL ?? '').replace('/api', '');
+  const fullUrl = resumeUrl ? `${serverBase}${resumeUrl}` : null;
+
+  return (
+    <Section title="Resume">
+      <div className="space-y-4">
+        {fullUrl && fileName ? (
+          <div className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
+            <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary-50 border border-primary-100 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-primary-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-800 truncate">{fileName}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Uploaded resume · contributes to profile score</p>
+            </div>
+            <a
+              href={fullUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline flex-shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" />
+              View
+            </a>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 px-4 rounded-lg border-2 border-dashed border-slate-200 text-center">
+            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <Upload className="h-5 w-5 text-slate-400" />
+            </div>
+            <p className="text-sm font-medium text-slate-600">No resume uploaded yet</p>
+            <p className="text-xs text-slate-400 mt-1">Upload your resume to boost profile completion by 15%</p>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="gap-1.5"
+          >
+            {uploading ? (
+              <LoadingSpinner size="sm" className="h-3.5 w-3.5" />
+            ) : resumeUrl ? (
+              <RefreshCw className="h-3.5 w-3.5" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
+            {uploading ? 'Uploading…' : resumeUrl ? 'Replace Resume' : 'Upload Resume'}
+          </Button>
+          <p className="text-xs text-slate-400">PDF, DOC, or DOCX · Max 2 MB</p>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={RESUME_ACCEPT}
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </div>
     </Section>
   );
@@ -433,10 +557,12 @@ function EducationSection({ candidate }: { candidate: Candidate }) {
   };
 
   const onSubmit = async (data: EducationInput) => {
-    const payload = { ...data, endYear: data.isCurrently ? undefined : data.endYear };
-    if (editItem) await updateEdu.mutateAsync({ id: editItem.id, data: payload });
-    else await addEdu.mutateAsync(payload);
-    setDialogOpen(false);
+    try {
+      const payload = { ...data, endYear: data.isCurrently ? undefined : data.endYear };
+      if (editItem) await updateEdu.mutateAsync({ id: editItem.id, data: payload });
+      else await addEdu.mutateAsync(payload);
+      setDialogOpen(false);
+    } catch { /* toast shown by onError */ }
   };
 
   const educations = candidate.educations ?? [];
@@ -580,10 +706,12 @@ function ExperienceSection({ candidate }: { candidate: Candidate }) {
   };
 
   const onSubmit = async (data: ExperienceInput) => {
-    const payload = { ...data, endDate: data.isCurrent ? undefined : data.endDate || undefined };
-    if (editItem) await updateExp.mutateAsync({ id: editItem.id, data: payload });
-    else await addExp.mutateAsync(payload);
-    setDialogOpen(false);
+    try {
+      const payload = { ...data, endDate: data.isCurrent ? undefined : data.endDate || undefined };
+      if (editItem) await updateExp.mutateAsync({ id: editItem.id, data: payload });
+      else await addExp.mutateAsync(payload);
+      setDialogOpen(false);
+    } catch { /* toast shown by onError */ }
   };
 
   const experiences = candidate.experiences ?? [];
@@ -715,8 +843,10 @@ function SkillsSection({ candidate }: { candidate: Candidate }) {
   }, []);
 
   const handleSave = async () => {
-    await updateSkills.mutateAsync(selected.map((s) => s.id));
-    setEditing(false);
+    try {
+      await updateSkills.mutateAsync(selected.map((s) => s.id));
+      setEditing(false);
+    } catch { /* toast shown by onError */ }
   };
 
   const handleCancel = () => {
@@ -804,14 +934,16 @@ function PreferencesSection({ candidate }: { candidate: Candidate }) {
     setSelectedTypes((prev) => prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]);
 
   const handleSave = async () => {
-    await updateProfile.mutateAsync({
-      preferredRoles: preferredRoles || undefined,
-      preferredCities: preferredCities || undefined,
-      preferredEmpType: selectedTypes.length > 0 ? selectedTypes.join(', ') : undefined,
-      expectedSalaryMin: salaryMin ? Number(salaryMin) : undefined,
-      expectedSalaryMax: salaryMax ? Number(salaryMax) : undefined,
-    } as Partial<Candidate>);
-    setEditing(false);
+    try {
+      await updateProfile.mutateAsync({
+        preferredRoles: preferredRoles || undefined,
+        preferredCities: preferredCities || undefined,
+        preferredEmpType: selectedTypes.length > 0 ? selectedTypes.join(', ') : undefined,
+        expectedSalaryMin: salaryMin ? Number(salaryMin) : undefined,
+        expectedSalaryMax: salaryMax ? Number(salaryMax) : undefined,
+      } as Partial<Candidate>);
+      setEditing(false);
+    } catch { /* toast shown by onError */ }
   };
 
   if (!editing) {
@@ -943,6 +1075,7 @@ export default function CandidateProfilePage() {
       <ProfileHeader candidate={candidate} />
       <PersonalInfoSection candidate={candidate} />
       <BioLinksSection candidate={candidate} />
+      <ResumeSection candidate={candidate} />
       <EducationSection candidate={candidate} />
       <ExperienceSection candidate={candidate} />
       <SkillsSection candidate={candidate} />

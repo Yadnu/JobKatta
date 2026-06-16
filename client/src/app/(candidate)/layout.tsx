@@ -40,7 +40,7 @@ export default function CandidateLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50">
       <CandidateSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />

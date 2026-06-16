@@ -11,14 +11,19 @@ import Pagination from '@/components/shared/Pagination';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import type { Job, ApiResponse } from '@/types';
 
+interface SavedJobEntry {
+  id: string;
+  job: Job;
+}
+
 export default function SavedJobsPage() {
   const [page, setPage] = useState(1);
   const router = useRouter();
 
   const { data, isLoading } = useSavedJobs(page);
 
-  const response = data as ApiResponse<Job[]> | undefined;
-  const savedJobs: Job[] = response?.data ?? [];
+  const response = data as ApiResponse<SavedJobEntry[]> | undefined;
+  const savedJobs: Job[] = (response?.data ?? []).map((e) => e.job).filter(Boolean) as Job[];
   const pagination = response?.pagination;
 
   return (

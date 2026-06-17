@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,6 +49,7 @@ export default function EmployerOnboardingPage() {
   const router = useRouter();
   const { data: employer, isLoading } = useEmployerProfile();
   const updateProfile = useUpdateEmployerProfile();
+  const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,9 +78,9 @@ export default function EmployerOnboardingPage() {
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('photo', file);
-      const res = await api.post<ApiResponse<{ photoUrl: string }>>('/upload/photo', formData);
-      await updateProfile.mutateAsync({ logoUrl: res.data.data.photoUrl } as Partial<Employer>);
+      formData.append('logo', file);
+      await api.post<ApiResponse<{ logoUrl: string }>>('/upload/logo', formData);
+      qc.invalidateQueries({ queryKey: ['employer', 'profile'] });
     } catch {
       toast.error('Failed to upload logo');
     } finally {

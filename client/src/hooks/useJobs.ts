@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import type { ApiResponse, Employer, Job, Skill } from '@/types';
+import type { ApiResponse, Employer, Job, PublicEmployerSummary, Skill } from '@/types';
 
 interface JobFilters {
   keyword?: string;
@@ -55,10 +55,28 @@ export const useSaveJob = () => {
   });
 };
 
+interface EmployerFilters {
+  keyword?: string;
+  industry?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const usePublicEmployers = (filters: EmployerFilters = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== '') params.set(k, String(v)); });
+  return useQuery({
+    queryKey: ['employers', 'public', filters],
+    queryFn: () =>
+      api.get<ApiResponse<PublicEmployerSummary[]>>(`/jobs/employers?${params}`).then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 export const usePublicEmployer = (employerId: string) =>
   useQuery({
     queryKey: ['employer', 'public', employerId],
-    queryFn: () => api.get<ApiResponse<Employer>>(`/employers/${employerId}`).then((r) => r.data.data),
+    queryFn: () => api.get<ApiResponse<Employer>>(`/employer/public/${employerId}`).then((r) => r.data.data),
     enabled: !!employerId,
     staleTime: 5 * 60 * 1000,
   });

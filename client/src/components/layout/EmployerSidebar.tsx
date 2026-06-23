@@ -9,6 +9,7 @@ import {
   ListChecks,
   CreditCard,
   Building2,
+  BarChart2,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ const NAV_LINKS = [
   { href: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/employer/jobs/new', label: 'Post a Job', icon: PlusSquare },
   { href: '/employer/jobs', label: 'My Jobs', icon: ListChecks },
+  { href: '/employer/analytics', label: 'Analytics', icon: BarChart2 },
   { href: '/employer/profile', label: 'Company Profile', icon: Building2 },
   { href: '/employer/subscription', label: 'Subscription', icon: CreditCard },
 ];

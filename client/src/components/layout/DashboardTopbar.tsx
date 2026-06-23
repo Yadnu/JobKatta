@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, Menu, LogOut, User } from 'lucide-react';
+import { Menu, LogOut, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
+import NotificationDropdown from '@/components/shared/NotificationDropdown';
 
 interface DashboardTopbarProps {
   onMenuClick?: () => void;
@@ -48,13 +49,7 @@ export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
       <div className="flex-1" />
 
       <div className="flex items-center gap-1 sm:gap-2">
-        {/* Notification bell — placeholder */}
-        <button
-          aria-label="Notifications"
-          className="relative p-2 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors"
-        >
-          <Bell className="h-5 w-5" />
-        </button>
+        <NotificationDropdown />
 
         {/* User dropdown */}
         <DropdownMenu>

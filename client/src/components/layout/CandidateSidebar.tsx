@@ -10,6 +10,8 @@ import {
   User,
   CreditCard,
   Search,
+  Bell,
+  LifeBuoy,
   X,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -22,7 +24,9 @@ const NAV_LINKS = [
   { href: '/candidate/applications', label: 'My Applications', icon: FileText },
   { href: '/candidate/saved-jobs', label: 'Saved Jobs', icon: Bookmark },
   { href: '/candidate/profile', label: 'Profile', icon: User },
+  { href: '/candidate/alerts', label: 'Job Alerts', icon: Bell },
   { href: '/candidate/subscription', label: 'Subscription', icon: CreditCard },
+  { href: '/candidate/support', label: 'Support', icon: LifeBuoy },
 ];
 
 interface CandidateSidebarProps {

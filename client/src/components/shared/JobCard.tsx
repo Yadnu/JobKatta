@@ -99,13 +99,13 @@ export default function JobCard({ job, saved = false, className, showSkills = fa
             />
           </div>
 
-          {showSkills && job.skills.length > 0 && (
+          {showSkills && (job.skills?.length ?? 0) > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {job.skills.slice(0, 4).map((js) => (
+              {job.skills!.slice(0, 4).map((js) => (
                 <SkillBadge key={js.skillId} name={js.skill.name} />
               ))}
-              {job.skills.length > 4 && (
-                <span className="text-xs text-slate-400">+{job.skills.length - 4} more</span>
+              {job.skills!.length > 4 && (
+                <span className="text-xs text-slate-400">+{job.skills!.length - 4} more</span>
               )}
             </div>
           )}

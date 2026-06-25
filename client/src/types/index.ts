@@ -193,6 +193,17 @@ export interface Subscription {
   createdAt: string;
 }
 
+export interface EmailAlert {
+  id: string;
+  candidateId: string;
+  keywords: string;
+  city: string;
+  jobType: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
@@ -206,8 +217,46 @@ export interface ApiResponse<T = unknown> {
   errors?: { field: string; message: string }[];
 }
 
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  subject: string;
+  message: string;
+  status: TicketStatus;
+  adminReply?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicEmployerSummary {
+  id: string;
+  companyName: string;
+  logoUrl?: string;
+  city: string;
+  state: string;
+  industry?: string;
+  companySize?: string;
+  website?: string;
+  description?: string;
+  isVerified: boolean;
+  foundedYear?: number;
+  activeJobCount: number;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
   user: Pick<User, 'id' | 'email' | 'role' | 'isEmailVerified'> & { mobile?: string };
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string;
 }

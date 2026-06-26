@@ -15,6 +15,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import supportRoutes from './routes/support.routes.js';
 import skillsRoutes from './routes/skills.routes.js';
+import notificationRoutes from './routes/notifications.routes.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.middleware.js';
 import { generalApiLimit } from './middleware/rateLimit.middleware.js';
@@ -66,6 +67,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/skills', skillsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ─── Health Check ──────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));

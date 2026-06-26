@@ -46,6 +46,6 @@ const resumeFilter = (_req, file, cb) => {
 
 export const uploadPhoto = multer({ storage: storageFor('photos'), limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: photoFilter });
 export const uploadLogo = multer({ storage: storageFor('logos'), limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: photoFilter });
-export const uploadResume = multer({ storage: storageFor('resumes'), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: resumeFilter });
+export const uploadResume = multer({ storage: storageFor('resumes'), limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: resumeFilter });
 
 export const getUploadPath = () => UPLOAD_PATH;

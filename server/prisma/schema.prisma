@@ -76,6 +76,7 @@ model User {
   admin          Admin?
   supportTickets SupportTicket[]
   flagReports    FlagReport[]
+  notifications  Notification[]
 }
 
 model Candidate {
@@ -362,4 +363,18 @@ model EmailAlert {
   lastSentAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
 }

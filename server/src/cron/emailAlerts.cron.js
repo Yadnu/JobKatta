@@ -12,44 +12,53 @@ export const startEmailAlertsCron = () => {
       });
 
       for (const alert of alerts) {
-        const since = alert.lastSentAt || new Date(0);
-        const where = {
-          status: 'ACTIVE',
-          createdAt: { gt: since },
-        };
+        try {
+          const email = alert.candidate?.user?.email;
+          if (!email) continue;
 
-        if (alert.keywords) {
-          where.OR = [
-            { title: { contains: alert.keywords } },
-            { description: { contains: alert.keywords } },
-          ];
-        }
-        if (alert.city) where.city = { contains: alert.city };
-        if (alert.jobType) where.employmentType = alert.jobType;
+          const since = alert.lastSentAt || new Date(0);
+          const where = {
+            status: 'ACTIVE',
+            createdAt: { gt: since },
+          };
 
-        const jobs = await db.job.findMany({
-          where,
-          include: { employer: { select: { companyName: true } } },
-          take: 10,
-        });
+          if (alert.keywords) {
+            where.OR = [
+              { title: { contains: alert.keywords } },
+              { description: { contains: alert.keywords } },
+            ];
+          }
+          if (alert.city) where.city = { contains: alert.city };
+          if (alert.jobType) where.employmentType = alert.jobType;
 
-        if (jobs.length === 0) continue;
+          const jobs = await db.job.findMany({
+            where,
+            include: { employer: { select: { companyName: true } } },
+            take: 10,
+          });
 
-        const email = alert.candidate?.user?.email;
-        if (email) {
+          if (jobs.length === 0) continue;
+
+          const fullName = [alert.candidate?.firstName, alert.candidate?.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+
           await sendJobAlertDigestEmail(email, {
-            name: `${alert.candidate.firstName} ${alert.candidate.lastName}`,
+            name: fullName || 'there',
             jobCount: jobs.length,
             jobs: jobs.map((j) => ({
               title: j.title,
-              company: j.employer.companyName,
+              company: j.employer?.companyName ?? 'A company',
               city: j.city,
               url: `${process.env.BASE_URL}/jobs/${j.id}`,
             })),
           }).catch(() => {});
-        }
 
-        await db.emailAlert.update({ where: { id: alert.id }, data: { lastSentAt: new Date() } });
+          await db.emailAlert.update({ where: { id: alert.id }, data: { lastSentAt: new Date() } });
+        } catch (alertErr) {
+          console.error(`[Cron] emailAlerts failed for alert ${alert.id}:`, alertErr);
+        }
       }
 
       console.log(`[Cron] Processed ${alerts.length} email alert(s)`);

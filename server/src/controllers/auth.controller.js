@@ -3,7 +3,7 @@ import db from '../config/database.js';
 import { hashPassword, comparePassword, hashToken, compareToken } from '../utils/hash.util.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.util.js';
 import { sendOtp, verifyOtp } from '../services/otp.service.js';
-import { sendVerifyEmail, sendPasswordResetEmail } from '../services/email.service.js';
+import { deliverVerifyEmail, deliverPasswordResetEmail } from '../services/email.service.js';
 import { catchAsync, AppError } from '../middleware/errorHandler.middleware.js';
 import xss from 'xss';
 
@@ -42,7 +42,14 @@ export const register = catchAsync(async (req, res) => {
 
   if (email) {
     const verifyUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/verify-email?token=${verifyToken}`;
-    await sendVerifyEmail(email, { name: firstName || companyName, verifyUrl }).catch(() => {});
+    const emailResult = await deliverVerifyEmail(email, { name: firstName || companyName, verifyUrl }, { userId: user.id });
+    if (!emailResult.ok) {
+      return res.status(201).json({
+        success: true,
+        message: 'Registration successful, but we could not send the verification email. Please try again from login or contact support.',
+        data: { userId: user.id, role: user.role, emailDeliveryFailed: true },
+      });
+    }
   }
 
   res.status(201).json({ success: true, message: 'Registration successful. Please verify your email.', data: { userId: user.id, role: user.role } });
@@ -122,7 +129,7 @@ export const forgotPassword = catchAsync(async (req, res) => {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await db.user.update({ where: { id: user.id }, data: { emailVerifyToken: `reset:${tokenHash}:${expiresAt.toISOString()}` } });
     const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-    await sendPasswordResetEmail(email, { resetUrl }).catch(() => {});
+    await deliverPasswordResetEmail(email, { resetUrl }, { userId: user.id });
   }
   res.json({ success: true, message: 'If this email is registered, a reset link has been sent.' });
 });

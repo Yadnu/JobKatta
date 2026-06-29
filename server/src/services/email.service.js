@@ -7,6 +7,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const emailMetrics = {
+  sent: 0,
+  failed: 0,
+  retried: 0,
+  lastFailure: null,
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const maskEmail = (email) => {
+  const [local, domain] = String(email).split('@');
+  if (!domain) return '***';
+  const visible = local.length <= 2 ? '*' : `${local.slice(0, 2)}***`;
+  return `${visible}@${domain}`;
+};
+
+export const getEmailMetrics = () => ({ ...emailMetrics, lastFailure: emailMetrics.lastFailure ? { ...emailMetrics.lastFailure } : null });
+
 const loadTemplate = (templateName, data) => {
   const templatePath = path.join(__dirname, '..', 'templates', 'emails', `${templateName}.html`);
   let html = fs.readFileSync(templatePath, 'utf-8');
@@ -23,13 +41,65 @@ const loadTemplate = (templateName, data) => {
 
 const sendEmail = async ({ to, subject, templateName, data }) => {
   const html = loadTemplate(templateName, data);
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: 'JobKatta <noreply@jobkatta.in>',
     to,
     subject,
     html,
   });
+  if (error) throw new Error(error.message || 'Email provider rejected the request');
 };
+
+/**
+ * Send with retries, structured logging, and in-process metrics for monitoring.
+ * Returns { ok: true } or { ok: false, error: Error } — never throws.
+ */
+export const sendEmailReliable = async ({ to, subject, templateName, data, context = {} }, maxAttempts = 3) => {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await sendEmail({ to, subject, templateName, data });
+      emailMetrics.sent++;
+      if (attempt > 1) {
+        console.info('[Email] Delivered after retry', { templateName, to: maskEmail(to), attempt, ...context });
+      }
+      return { ok: true };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxAttempts) emailMetrics.retried++;
+      console.error('[Email] Send failed', {
+        templateName,
+        to: maskEmail(to),
+        attempt,
+        maxAttempts,
+        error: lastError.message,
+        ...context,
+      });
+      if (attempt < maxAttempts) await sleep(300 * attempt);
+    }
+  }
+
+  emailMetrics.failed++;
+  emailMetrics.lastFailure = {
+    at: new Date().toISOString(),
+    templateName,
+    to: maskEmail(to),
+    error: lastError?.message,
+    ...context,
+  };
+  return { ok: false, error: lastError };
+};
+
+export const deliverVerifyEmail = (to, data, context = {}) =>
+  sendEmailReliable(
+    { to, subject: 'Verify your Job Katta email', templateName: 'verify-email', data, context: { flow: 'verify-email', ...context } },
+  );
+
+export const deliverPasswordResetEmail = (to, data, context = {}) =>
+  sendEmailReliable(
+    { to, subject: 'Reset your Job Katta password', templateName: 'reset-password', data, context: { flow: 'password-reset', ...context } },
+  );
 
 export const sendWelcomeEmail = (to, data) =>
   sendEmail({ to, subject: 'Welcome to Job Katta!', templateName: 'welcome-candidate', data });

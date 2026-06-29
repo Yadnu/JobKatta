@@ -21,6 +21,7 @@ import { errorHandler, notFound } from './middleware/errorHandler.middleware.js'
 import { generalApiLimit } from './middleware/rateLimit.middleware.js';
 import { getUploadPath } from './config/upload.js';
 
+import { getEmailMetrics } from './services/email.service.js';
 import { startExpireJobsCron } from './cron/expireJobs.cron.js';
 import { startExpiryReminderCron } from './cron/expiryReminder.cron.js';
 import { startResetAppCountCron } from './cron/resetAppCount.cron.js';
@@ -70,7 +71,19 @@ app.use('/api/skills', skillsRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // ─── Health Check ──────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/health', (_req, res) => {
+  const email = getEmailMetrics();
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    email: {
+      sent: email.sent,
+      failed: email.failed,
+      retried: email.retried,
+      lastFailure: email.lastFailure,
+    },
+  });
+});
 
 // ─── 404 + Error Handler ───────────────────────────────────────────────────
 app.use(notFound);

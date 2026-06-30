@@ -8,28 +8,23 @@ import DashboardTopbar from '@/components/layout/DashboardTopbar';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, _hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
+    if (!_hasHydrated) return;
     if (!isAuthenticated || user?.role !== 'ADMIN') {
       router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [mounted, isAuthenticated, user, router, pathname]);
+  }, [_hasHydrated, isAuthenticated, user, router, pathname]);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  if (!mounted || !isAuthenticated || user?.role !== 'ADMIN') {
+  if (!_hasHydrated || !isAuthenticated || user?.role !== 'ADMIN') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <LoadingSpinner size="lg" />

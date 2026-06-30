@@ -29,12 +29,19 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !original._retry) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          original.headers.Authorization = `Bearer ${token}`;
-          return api(original);
-        });
+        })
+          .then((token) => {
+            original.headers.Authorization = `Bearer ${token}`;
+            return api(original);
+          })
+          .catch((queueError) => {
+            // The refresh failed (or was rejected); propagate the rejection so
+            // the original caller's catch handler runs instead of leaking an
+            // unhandled promise rejection.
+            return Promise.reject(queueError);
+          });
       }
 
       original._retry = true;

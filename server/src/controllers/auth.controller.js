@@ -129,7 +129,16 @@ export const forgotPassword = catchAsync(async (req, res) => {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await db.user.update({ where: { id: user.id }, data: { emailVerifyToken: `reset:${tokenHash}:${expiresAt.toISOString()}` } });
     const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-    await deliverPasswordResetEmail(email, { resetUrl }, { userId: user.id });
+    const emailResult = await deliverPasswordResetEmail(email, { resetUrl }, { userId: user.id });
+    if (!emailResult.ok) {
+      // Don't leave a usable reset token set for a link the user never received.
+      await db.user.update({ where: { id: user.id }, data: { emailVerifyToken: null } });
+      return res.json({
+        success: true,
+        message: 'We could not send the reset email right now. Please try again in a few minutes.',
+        data: { emailDeliveryFailed: true },
+      });
+    }
   }
   res.json({ success: true, message: 'If this email is registered, a reset link has been sent.' });
 });

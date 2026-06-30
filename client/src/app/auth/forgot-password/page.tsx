@@ -22,10 +22,19 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: { email: string }) => {
     setSubmitting(true);
     try {
-      await api.post('/auth/forgot-password', data);
+      const res = await api.post<{ message: string; data?: { emailDeliveryFailed?: boolean } }>(
+        '/auth/forgot-password',
+        data,
+      );
+      if (res.data.data?.emailDeliveryFailed) {
+        toast.error(res.data.message || 'We could not send the reset email. Please try again shortly.');
+        return;
+      }
       setSent(true);
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || 'Something went wrong. Please try again.';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

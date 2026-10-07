@@ -83,6 +83,7 @@ export const useAuth = () => {
     queryFn: () => api.get<ApiResponse<User>>('/auth/me').then((r) => r.data.data),
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   return {

@@ -7,6 +7,18 @@ import { useAuthStore } from '@/store/authStore';
 import type { LoginInput, RegisterInput } from '@/lib/validations';
 import type { ApiResponse, AuthTokens, User } from '@/types';
 
+/**
+ * Returns the `?next=` query param if it is a safe internal path,
+ * or null otherwise. Guards against open-redirect attacks.
+ */
+const getSafeNext = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const next = new URLSearchParams(window.location.search).get('next');
+  // Only allow relative paths; reject protocol-relative URLs (//evil.com) and external URLs
+  if (next && next.startsWith('/') && !next.startsWith('//')) return next;
+  return null;
+};
+
 export const useAuth = () => {
   const { user, isAuthenticated, setAuth, clearAuth } = useAuthStore();
   const router = useRouter();
@@ -31,9 +43,10 @@ export const useAuth = () => {
       const meRes = await api.get<ApiResponse<User>>('/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } });
       setAuth(meRes.data.data, accessToken, refreshToken);
       toast.success('Welcome back!');
-      if (u.role === 'CANDIDATE') router.push('/candidate/dashboard');
-      else if (u.role === 'EMPLOYER') router.push('/employer/dashboard');
-      else router.push('/admin/dashboard');
+      const next = getSafeNext();
+      if (u.role === 'CANDIDATE') router.push(next || '/candidate/dashboard');
+      else if (u.role === 'EMPLOYER') router.push(next || '/employer/dashboard');
+      else router.push(next || '/admin/dashboard');
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Login failed';
@@ -69,8 +82,10 @@ export const useAuth = () => {
       setAuth(meRes.data.data, accessToken, refreshToken);
       toast.success(isNewUser ? 'Account created!' : 'Welcome back!');
       const role = meRes.data.data.role;
-      if (role === 'CANDIDATE') router.push(isNewUser ? '/candidate/onboarding' : '/candidate/dashboard');
-      else router.push(isNewUser ? '/employer/onboarding' : '/employer/dashboard');
+      // New users always go to onboarding to set up their profile first
+      const next = isNewUser ? null : getSafeNext();
+      if (role === 'CANDIDATE') router.push(isNewUser ? '/candidate/onboarding' : (next || '/candidate/dashboard'));
+      else router.push(isNewUser ? '/employer/onboarding' : (next || '/employer/dashboard'));
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'OTP verification failed';

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+dimport { Router } from 'express';
 import { register, login, logout, refresh, getMe, verifyEmail, forgotPassword, resetPassword, sendOtpHandler, verifyOtpHandler } from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { loginRateLimit, otpRateLimit } from '../middleware/rateLimit.middleware.js';

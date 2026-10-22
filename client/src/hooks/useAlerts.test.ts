@@ -1,18 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// ─── mock api ────────────────────────────────────────────────────────────────
-const apiMock = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
-vi.mock('@/lib/api', () => ({ default: apiMock }));
+const { apiMock, invalidateQueriesMock } = vi.hoisted(() => ({
+  apiMock: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  invalidateQueriesMock: vi.fn(),
+}));
 
-// ─── mock react-query ─────────────────────────────────────────────────────────
-const invalidateQueriesMock = vi.fn();
+vi.mock('@/lib/api', () => ({ default: apiMock }));
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn((cfg) => cfg),
   useMutation: vi.fn((cfg) => cfg),
   useQueryClient: vi.fn(() => ({ invalidateQueries: invalidateQueriesMock })),
 }));
-
-// ─── mock toast ───────────────────────────────────────────────────────────────
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 
 import {

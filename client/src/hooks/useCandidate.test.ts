@@ -1,18 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// ─── mock api ────────────────────────────────────────────────────────────────
-const apiMock = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
-vi.mock('@/lib/api', () => ({ default: apiMock }));
+const { apiMock, invalidateQueriesMock } = vi.hoisted(() => ({
+  apiMock: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  invalidateQueriesMock: vi.fn(),
+}));
 
-// ─── mock react-query ─────────────────────────────────────────────────────────
-const invalidateQueriesMock = vi.fn();
+vi.mock('@/lib/api', () => ({ default: apiMock }));
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn((cfg) => cfg),
   useMutation: vi.fn((cfg) => cfg),
   useQueryClient: vi.fn(() => ({ invalidateQueries: invalidateQueriesMock })),
 }));
-
-// ─── mock toast ───────────────────────────────────────────────────────────────
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 
 import {
@@ -94,7 +92,7 @@ describe('useAddEducation', () => {
 describe('useUpdateEducation', () => {
   it('mutationFn calls PUT /candidate/education/:id', async () => {
     const cfg = useUpdateEducation() as any;
-    await cfg.mutationFn({ id: 'edu-1', degree: 'M.E.' });
+    await cfg.mutationFn({ id: 'edu-1', data: { degree: 'M.E.' } });
     expect(apiMock.put).toHaveBeenCalledWith('/candidate/education/edu-1', { degree: 'M.E.' });
   });
 });
@@ -126,7 +124,7 @@ describe('useAddExperience', () => {
 describe('useUpdateExperience', () => {
   it('mutationFn calls PUT /candidate/experience/:id', async () => {
     const cfg = useUpdateExperience() as any;
-    await cfg.mutationFn({ id: 'exp-2', company: 'Infosys' });
+    await cfg.mutationFn({ id: 'exp-2', data: { company: 'Infosys' } });
     expect(apiMock.put).toHaveBeenCalledWith('/candidate/experience/exp-2', { company: 'Infosys' });
   });
 });

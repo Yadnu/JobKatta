@@ -46,6 +46,13 @@ const authMock = vi.hoisted(() => ({
 
 vi.mock('./auth', () => authMock);
 
+const clearAuthMock = vi.fn();
+vi.mock('@/store/authStore', () => ({
+  useAuthStore: {
+    getState: () => ({ clearAuth: clearAuthMock }),
+  },
+}));
+
 // A manually controllable promise.
 function deferred<T = unknown>() {
   let resolve!: (value: T) => void;
@@ -74,6 +81,7 @@ async function loadApi() {
 describe('api auth interceptor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAuthMock.mockClear();
     Object.defineProperty(window, 'location', {
       value: { href: '' },
       writable: true,
@@ -108,7 +116,7 @@ describe('api auth interceptor', () => {
     const error = make401();
 
     await expect(state.responseRejected!(error)).rejects.toBe(error);
-    expect(authMock.clearTokens).toHaveBeenCalledOnce();
+    expect(clearAuthMock).toHaveBeenCalledOnce();
     expect(window.location.href).toBe('/auth/login');
     expect(mocks.post).not.toHaveBeenCalled();
   });
@@ -172,7 +180,7 @@ describe('api auth interceptor', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(unhandled).not.toHaveBeenCalled();
 
-    expect(authMock.clearTokens).toHaveBeenCalled();
+    expect(clearAuthMock).toHaveBeenCalled();
     expect(window.location.href).toBe('/auth/login');
     expect(mocks.apiInstance).not.toHaveBeenCalled();
 
